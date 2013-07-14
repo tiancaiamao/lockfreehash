@@ -1,10 +1,8 @@
 package lockfreehash
 
 import (
-	"fmt"
-
-//	"sync/atomic"
-//	"unsafe"
+	"sync/atomic"
+	"unsafe"
 )
 
 type node struct {
@@ -59,7 +57,6 @@ func listInsert(head, p *node) *node {
 				break
 			}
 			if next.key == p.key {
-				fmt.Println("should not run here!")
 				// insert a sentry and it's already in the list
 				if p.rawkey == nil && next.rawkey == nil {
 					return next
@@ -79,15 +76,20 @@ func listInsert(head, p *node) *node {
 		}
 
 		// insert p between prev and next
+		/*
+		* p.next = next
+		* prev.next = p
+		* return p
+		 */
+
 		p.next = next
-		prev.next = p
-		return p
-		// tmp := unsafe.Pointer(prev.next)
-		// if atomic.CompareAndSwapPointer(&tmp, unsafe.Pointer(next), unsafe.Pointer(p)) == true {
-		// 	return p
-		// } else {
-		// 	head = prev
-		// }
+		if atomic.CompareAndSwapUintptr((*uintptr)(unsafe.Pointer(&prev.next)),
+			uintptr(unsafe.Pointer(next)),
+			uintptr(unsafe.Pointer(p))) == true {
+			return p
+		} else {
+			head = prev
+		}
 	}
 }
 
@@ -96,7 +98,6 @@ func (h *Hash) Put(rawkey Key, value interface{}) {
 	mask := uint32((1 << h.bits) - 1)
 	idx := hash & mask
 	key := bitReverse(hash) | 1
-	fmt.Printf("hash: %d, key: %d", hash, key)
 
 	n := &node{
 		key:    key,
@@ -107,9 +108,6 @@ func (h *Hash) Put(rawkey Key, value interface{}) {
 	if h.array[idx] == nil {
 		// initialize this slot. it doesn't matter that different thread insert the sentry simentanlly, just one will success
 		h.initBucket(idx)
-		for i, p := 0, h.array[0]; p != nil; i, p = i+1, p.next {
-			fmt.Printf("the %dth key is %d\n", i, p.key)
-		}
 	}
 
 	listInsert(h.array[idx], n)
