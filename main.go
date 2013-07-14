@@ -2,8 +2,9 @@ package lockfreehash
 
 import (
 	"fmt"
-	"sync/atomic"
-	"unsafe"
+
+//	"sync/atomic"
+//	"unsafe"
 )
 
 type node struct {
@@ -39,22 +40,26 @@ func (h *Hash) initBucket(idx uint32) {
 	if h.array[parent] == nil {
 		h.initBucket(parent)
 	}
-	fmt.Println("dead lock in initBucket??")
 	sentry := newSentry(idx)
+
 	h.array[idx] = listInsert(h.array[parent], sentry)
 }
 
 // insert p to the sorted list , which begins with head
 // if the list already contains a node with p's key, return that node and discard p
 func listInsert(head, p *node) *node {
+	if head == nil {
+		panic("listInsert can't insert to a nil list!")
+	}
 	for {
-		next := head
+		next := head.next
 		prev := head
 		for {
 			if next == nil || next.key > p.key {
 				break
 			}
 			if next.key == p.key {
+				fmt.Println("should not run here!")
 				// insert a sentry and it's already in the list
 				if p.rawkey == nil && next.rawkey == nil {
 					return next
@@ -74,12 +79,15 @@ func listInsert(head, p *node) *node {
 		}
 
 		// insert p between prev and next
-		tmp := unsafe.Pointer(prev.next)
-		if atomic.CompareAndSwapPointer(&tmp, unsafe.Pointer(next), unsafe.Pointer(p)) == true {
-			return p
-		} else {
-			head = prev
-		}
+		p.next = next
+		prev.next = p
+		return p
+		// tmp := unsafe.Pointer(prev.next)
+		// if atomic.CompareAndSwapPointer(&tmp, unsafe.Pointer(next), unsafe.Pointer(p)) == true {
+		// 	return p
+		// } else {
+		// 	head = prev
+		// }
 	}
 }
 
@@ -87,7 +95,8 @@ func (h *Hash) Put(rawkey Key, value interface{}) {
 	hash := rawkey.GetHash()
 	mask := uint32((1 << h.bits) - 1)
 	idx := hash & mask
-	key := bitReverse(hash) & 1
+	key := bitReverse(hash) | 1
+	fmt.Printf("hash: %d, key: %d", hash, key)
 
 	n := &node{
 		key:    key,
@@ -98,7 +107,11 @@ func (h *Hash) Put(rawkey Key, value interface{}) {
 	if h.array[idx] == nil {
 		// initialize this slot. it doesn't matter that different thread insert the sentry simentanlly, just one will success
 		h.initBucket(idx)
+		for i, p := 0, h.array[0]; p != nil; i, p = i+1, p.next {
+			fmt.Printf("the %dth key is %d\n", i, p.key)
+		}
 	}
+
 	listInsert(h.array[idx], n)
 	h.num++
 
@@ -112,7 +125,7 @@ func reHash(h *Hash) {
 
 }
 
-func bitReverse(v uint32) uint32 {
+func bitReverse(v uint32) (ret uint32) {
 	mask := []uint32{
 		0x55555555, //...010101010101
 		0xaaaaaaaa, //...101010101010
@@ -126,12 +139,15 @@ func bitReverse(v uint32) uint32 {
 		0xffff0000,
 	}
 
-	for i := 0; i < 5; i++ {
-		tmp1 := v & mask[2*i]
-		tmp2 := v & mask[2*i+1]
-		v = tmp1 | tmp2
+	ret = v
+	for i := uint32(0); i < 5; i++ {
+		tmp1 := ret & mask[2*i]
+		tmp1 = tmp1 << (1 << i)
+		tmp2 := ret & mask[2*i+1]
+		tmp2 = tmp2 >> (1 << i)
+		ret = tmp1 | tmp2
 	}
-	return v
+	return
 }
 
 func newSentry(idx uint32) *node {
@@ -149,7 +165,7 @@ func (h *Hash) Delete(rawkey Key) {
 func (h *Hash) Get(rawkey Key) (interface{}, bool) {
 	hash := rawkey.GetHash()
 	mask := uint32((1 << h.bits) - 1)
-	key := bitReverse(hash) & 1
+	key := bitReverse(hash) | 1
 	idx := hash & mask
 
 	if h.array[idx] == nil {
