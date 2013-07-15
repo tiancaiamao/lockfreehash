@@ -22,7 +22,7 @@ func TestPut(t *testing.T) {
 	hash.Put(StringKey("vi"), 500)
 	hash.Put(StringKey("emacs"), 600)
 	val, ok := hash.Get(StringKey("vi"))
-	if ok == false || val != 600 {
+	if ok == false || val != 500 {
 		t.Fatal("Put error!")
 	}
 }

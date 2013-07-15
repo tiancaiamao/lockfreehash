@@ -120,7 +120,28 @@ func (h *Hash) Put(rawkey Key, value interface{}) {
 }
 
 func reHash(h *Hash) {
+	// we must take serious care that new node put to the hash while rehashing
+	bits := h.bits + 1
+	array := make([]*node, bits)
+	copy(array, h.array)
+	// update the bucket array, but not bits now! so that other thread see nothing but the old hash
+	h.array = array
 
+	for p := h.array[0]; p != nil; p = p.next {
+		// for every non-sentry node
+		if (p.key & 1) != 0 {
+			if p.key&(1<<(32-bits)) != 0 {
+				hash := bitReverse(p.key)
+				mask := uint32((1 << bits) - 1)
+				idx := hash & mask
+				if array[idx] == nil {
+					h.initBucket(idx)
+				}
+			}
+		}
+	}
+
+	h.bits = bits
 }
 
 func bitReverse(v uint32) (ret uint32) {
