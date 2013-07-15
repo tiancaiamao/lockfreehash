@@ -4,17 +4,16 @@ import (
 	"testing"
 )
 
-// func TeststringKey(t *testing.T) {
-// 	key1 := StringKey("test1")
-// 	key2 := StringKey("test1")
-// 	if !key1.Equal(key2) {
-// 		t.Fatal("StringKey equal error")
-// 	}
-// 	t.Log(key1.GetHash())
-// 	t.Log(key2.GetHash())
-// }
+func TeststringKey(t *testing.T) {
+	key1 := StringKey("test1")
+	key2 := StringKey("test1")
+	if !key1.Equal(key2) {
+		t.Fatal("StringKey equal error")
+	}
+	t.Log(key1.GetHash())
+	t.Log(key2.GetHash())
+}
 
-/*
 func TestPut(t *testing.T) {
 	hash := New()
 	hash.Put(StringKey("testing"), 200)
@@ -27,19 +26,18 @@ func TestPut(t *testing.T) {
 		t.Fatal("Put error!")
 	}
 }
-*/
 
-func TestBitReverse(t *testing.T) {
+func TestbitReverse(t *testing.T) {
 	var x uint32 = 0x000000ff
-	y := BitReverse(x)
+	y := bitReverse(x)
 	if y != 0xff000000 {
-		t.Fatal("BitReverse wrong!")
+		t.Fatal("bitReverse wrong!")
 	}
 	x = 0x00000050f
-	y = BitReverse(x)
+	y = bitReverse(x)
 	if y != 0xf0a00000 {
-		t.Fatal("BitReverse wrong 0x0000050f")
+		t.Fatal("bitReverse wrong 0x0000050f")
 	}
 	x = uint32(186)
-	t.Log(BitReverse(x))
+	t.Log(bitReverse(x))
 }
